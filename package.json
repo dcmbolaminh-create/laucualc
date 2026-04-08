@@ -1,137 +1,18 @@
-const express = require("express");
-const axios = require("axios");
-
-const app = express();
-const PORT = process.env.PORT || 3000;
-
-// ===== INFO =====
-const AUTHOR = "@vanminh2603";
-
-// ===== CONFIG =====
-const API_URL = "https://lc79apihdx.onrender.com/taixiu";
-
-// Cache dữ liệu
-let cache = null;
-let lastFetch = 0;
-const CACHE_TIME = 3000;
-
-// ===== AI DỰ ĐOÁN =====
-function predict(history) {
-  if (!history || history.length < 5) {
-    return {
-      prediction: "TÀI",
-      confidence: "60%",
-      reason: "Thiếu dữ liệu"
-    };
-  }
-
-  let tai = 0;
-  let xiu = 0;
-
-  history.forEach(item => {
-    if (item >= 11) tai++;
-    else xiu++;
-  });
-
-  let trend = tai > xiu ? "TÀI" : "XỈU";
-
-  let last3 = history.slice(-3);
-  let sum = last3.reduce((a, b) => a + b, 0);
-
-  let markov = sum >= 33 ? "TÀI" : "XỈU";
-
-  let final = trend === markov ? trend : markov;
-
-  let confidence = Math.min(
-    95,
-    Math.floor((Math.max(tai, xiu) / history.length) * 100 + 50)
-  );
-
-  return {
-    prediction: final,
-    confidence: confidence + "%",
-    reason: `Trend:${trend} | Markov:${markov}`
-  };
-}
-
-// ===== FETCH DATA =====
-async function fetchData() {
-  const now = Date.now();
-
-  if (cache && now - lastFetch < CACHE_TIME) {
-    return cache;
-  }
-
-  try {
-    const res = await axios.get(API_URL, {
-      timeout: 5000
-    });
-
-    cache = res.data;
-    lastFetch = now;
-
-    return cache;
-  } catch (err) {
-    console.log("Lỗi:", err.message);
-    return cache || { error: "API lỗi" };
+{
+  "name": "api-lc79-vip",
+  "version": "2.0.0",
+  "description": "API Tài Xỉu AI VIP by @vanminh2603",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "express": "^4.18.2"
   }
 }
-
-// ===== ROUTE CHÍNH =====
-app.get("/taixiu", async (req, res) => {
-  const data = await fetchData();
-
-  if (!data || data.error) {
-    return res.json({
-      error: "Không lấy được dữ liệu",
-      author: AUTHOR
-    });
-  }
-
-  let history = [
-    data.Tong,
-    Math.floor(Math.random() * 18),
-    Math.floor(Math.random() * 18),
-    Math.floor(Math.random() * 18),
-    Math.floor(Math.random() * 18),
-    Math.floor(Math.random() * 18)
-  ];
-
-  const ai = predict(history);
-
-  res.json({
-    ...data,
-    Du_doan: ai.prediction,
-    Do_tin_cay: ai.confidence,
-    Phan_tich: ai.reason,
-    author: AUTHOR
-  });
-});
-
-// ===== ROUTE INFO =====
-app.get("/info", (req, res) => {
-  res.json({
-    name: "API Tài Xỉu AI",
-    author: AUTHOR,
-    version: "2.0",
-    status: "running"
-  });
-});
-
-// ===== ROUTE TEST =====
-app.get("/", (req, res) => {
-  res.send(`🚀 API đang chạy | Author: ${AUTHOR}`);
-});
-
-// ===== CHỐNG SLEEP =====
-setInterval(async () => {
-  try {
-    await axios.get("https://YOUR-APP.onrender.com/");
-    console.log("Ping...");
-  } catch (e) {}
-}, 5 * 60 * 1000);
-
-// ===== START =====
-app.listen(PORT, () => {
-  console.log("Server chạy tại port " + PORT);
-});
